@@ -49,6 +49,41 @@ app.get('/register', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'register.html'));
 });
 
-// Start
+// Register logic
+app.post('/register', async (req, res) => {
+  const { name, email, password } = req.body;
+  const hashed = await bcrypt.hash(password, 10);
+
+  db.run(`INSERT INTO users (name, email, password) VALUES (?, ?, ?)`, [name, email, hashed], function(err) {
+    if (err) return res.send("Email already exists. <a href='/register'>Try again</a>");
+    req.session.userId = this.lastID;
+    res.redirect('/');
+  });
+});
+
+// Login logic
+app.post('/login', (req, res) => {
+  const { email, password } = req.body;
+
+  db.get(`SELECT * FROM users WHERE email = ?`, [email], async (err, user) => {
+    if (err || !user) return res.send("No account found. <a href='/login'>Try again</a>");
+
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) return res.send("Wrong password. <a href='/login'>Try again</a>");
+
+    req.session.userId = user.id;
+    res.redirect('/');
+  });
+});
+
+// Logout logic
+app.get('/logout', (req, res) => {
+  req.session.destroy(() => res.redirect('/login'));
+});
+
+// Start server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Luna AI running on port ${PORT}`));
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Luna AI running on port ${PORT}`));
