@@ -92,41 +92,43 @@ app.post('/chat', async (req, res) => {
   }
 
   try {
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error("OpenAI API key not found in environment variables");
+    if (!process.env.OPENROUTER_API_KEY) {
+      throw new Error("OpenRouter API key not found in environment variables");
     }
 
-    console.log("Sending message to OpenAI:", userMsg);
+    console.log("Sending message to OpenRouter:", userMsg);
     
-    console.log("Using API Key:", process.env.OPENAI_API_KEY ? "Key is present" : "Key is missing");
+    console.log("Using API Key:", process.env.OPENROUTER_API_KEY ? "Key is present" : "Key is missing");
     
     // Add delay between requests
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    const openaiRes = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
+    const openRouterRes = await axios.post(
+      "https://openrouter.ai/api/v1/chat/completions",
       {
-        model: "gpt-3.5-turbo",
+        model: "mistralai/mistral-7b-instruct",
         messages: [{ role: "user", content: userMsg }],
         max_tokens: 1000,
         temperature: 0.7
       },
       {
         headers: {
-          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          "HTTP-Referer": "https://replit.com",
+          "X-Title": "Educore AI",
           "Content-Type": "application/json"
         }
       }
     );
 
-    console.log("OpenAI raw response:", openaiRes.data);
+    console.log("OpenRouter raw response:", openRouterRes.data);
     
-    if (!openaiRes.data?.choices?.[0]?.message?.content) {
-      console.error("Unexpected API response format:", openaiRes.data);
-      throw new Error("Unexpected response format from OpenAI");
+    if (!openRouterRes.data?.choices?.[0]?.message?.content) {
+      console.error("Unexpected API response format:", openRouterRes.data);
+      throw new Error("Unexpected response format from OpenRouter");
     }
 
-    const aiResponse = openaiRes.data.choices[0].message.content;
+    const aiResponse = openRouterRes.data.choices[0].message.content;
     console.log("Final AI response:", aiResponse);
     res.json({ response: aiResponse });
 
