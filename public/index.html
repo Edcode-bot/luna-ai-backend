@@ -11,6 +11,9 @@
     <button type="submit">Send</button>
   </form>
   <div id="response" style="margin-top: 1rem;"></div>
+  <div id="loginLink" style="display: none; margin-top: 1rem;">
+    <a href="/login">Click here to login</a>
+  </div>
 
   <script>
     document.getElementById("chatForm").addEventListener("submit", async (e) => {
@@ -22,7 +25,10 @@
         body: JSON.stringify({ message: msg })
       });
       const data = await res.json();
-      if (data.error) {
+      if (data.error === "Not logged in") {
+        document.getElementById("response").innerText = data.response;
+        document.getElementById("loginLink").style.display = "block";
+      } else if (data.error) {
         document.getElementById("response").innerText = "Error: " + data.error;
       } else {
         document.getElementById("response").innerText = "Luna AI: " + (data.response || "No response received");

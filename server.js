@@ -87,7 +87,9 @@ app.post('/chat', async (req, res) => {
   const userId = req.session.userId;
   const userMsg = req.body.message;
 
-  if (!userId) return res.status(401).json({ error: "Not logged in" });
+  if (!userId) {
+    return res.status(401).json({ response: "Please log in first. Click the login link below to continue.", error: "Not logged in" });
+  }
 
   try {
     if (!process.env.OPENAI_API_KEY) {
