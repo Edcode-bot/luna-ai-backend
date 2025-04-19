@@ -84,6 +84,3 @@ app.get('/logout', (req, res) => {
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Luna AI running on port ${PORT}`));
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Luna AI running on port ${PORT}`));
