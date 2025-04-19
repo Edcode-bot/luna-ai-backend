@@ -165,42 +165,33 @@
     }
     .input-group {
       display: flex;
-      gap: 0.5rem;
-      align-items: center;
-      border-bottom: 2px solid #edf2f7;
-      padding-bottom: 0.5rem;
+      gap: 0.75rem;
     }
     input[type="text"] {
       flex: 1;
-      padding: 0.75rem;
-      border: none;
+      padding: 1rem;
+      border-radius: var(--radius);
+      border: 2px solid #edf2f7;
       font-size: 1rem;
-      background: transparent;
       transition: var(--transition);
     }
     input[type="text"]:focus {
       outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
     }
-    .input-group button {
-      width: 40px;
-      height: 40px;
-      padding: 0;
-      border-radius: 50%;
+    button {
+      padding: 0.75rem 1.5rem;
+      border-radius: var(--radius);
       border: none;
       background: var(--gradient);
       color: white;
       cursor: pointer;
       transition: var(--transition);
-      display: flex;
-      align-items: center;
-      justify-content: center;
     }
-    .input-group button:hover {
+    button:hover {
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(66, 153, 225, 0.3);
-    }
-    .input-group button i {
-      font-size: 1rem;
     }
     #fileInput {
       display: none;
@@ -221,11 +212,11 @@
 
     <div class="input-bar">
       <div class="file-tools">
-        <label for="fileInput"><i class="fas fa-paperclip"></i></label>
+        <label for="fileInput"><i class="fas fa-paperclip"></i> Upload</label>
         <input type="file" id="fileInput" multiple>
-        <button onclick="exportChat('txt')" title="Export as TXT"><i class="fas fa-file-export"></i></button>
-        <button onclick="exportChat('pdf')" title="Export as PDF"><i class="fas fa-file-pdf"></i></button>
-        <button onclick="clearChat()" title="Clear chat"><i class="fas fa-trash"></i></button>
+        <button onclick="exportChat('txt')"><i class="fas fa-file-export"></i> Export TXT</button>
+        <button onclick="exportChat('pdf')"><i class="fas fa-file-pdf"></i> Export PDF</button>
+        <button onclick="clearChat()"><i class="fas fa-trash"></i> Clear</button>
       </div>
       <div class="input-group">
         <input type="text" id="questionInput" placeholder="Type your question here..." autocomplete="off">
