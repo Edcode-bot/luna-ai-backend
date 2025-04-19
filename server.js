@@ -94,11 +94,14 @@ app.post('/chat', async (req, res) => {
       throw new Error("OpenAI API key not found in environment variables");
     }
 
+    console.log("Sending message to OpenAI:", userMsg);
+    
     const openaiRes = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
         model: "gpt-3.5-turbo",
         messages: [{ role: "user", content: userMsg }],
+        max_tokens: 1000
       },
       {
         headers: {
@@ -108,11 +111,15 @@ app.post('/chat', async (req, res) => {
       }
     );
 
+    console.log("OpenAI raw response:", openaiRes.data);
+    
     if (!openaiRes.data?.choices?.[0]?.message?.content) {
+      console.error("Unexpected API response format:", openaiRes.data);
       throw new Error("Unexpected response format from OpenAI");
     }
 
     const aiResponse = openaiRes.data.choices[0].message.content;
+    console.log("Final AI response:", aiResponse);
     res.json({ response: aiResponse });
 
   } catch (err) {
