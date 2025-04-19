@@ -148,4 +148,7 @@ app.post('/chat', async (req, res) => {
 
 // Start server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Luna AI running on port ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Luna AI running on port ${PORT}`);
+  console.log('Access your app at: https://your-repl-name.your-username.repl.co');
+});
