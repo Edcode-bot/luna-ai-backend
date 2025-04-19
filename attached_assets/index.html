@@ -168,7 +168,7 @@
   <script>
     let chatHistory = [];
 
-    function askAI(context = '') {
+    async function askAI(context = '') {
       const input = document.getElementById('questionInput');
       const question = input.value.trim();
       if (!question) return;
@@ -190,11 +190,25 @@
         </div>`;
       document.getElementById('chatArea').prepend(messageBox);
 
-      setTimeout(() => {
-        const response = `This is an AI-generated answer for: ${question}`;
+      try {
+        const res = await fetch('/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: question })
+        });
+        const data = await res.json();
+        
+        if (data.error === "Not logged in") {
+          window.location.href = '/login';
+          return;
+        }
+        
+        const response = data.response || "An error occurred. Please try again.";
         messageBox.querySelector('.answer').textContent = `A: ${response}`;
         chatHistory.push({ q: question, a: response });
-      }, 1000);
+      } catch (err) {
+        messageBox.querySelector('.answer').textContent = `A: Error: ${err.message}`;
+      }
     }
 
     function retry(question) {
