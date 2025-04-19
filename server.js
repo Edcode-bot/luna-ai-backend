@@ -13,7 +13,7 @@ const db = new sqlite3.Database('./database/luna.sqlite');
 // Middleware
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static('attached_assets'));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'lunasecret',
   resave: false,
