@@ -90,6 +90,10 @@ app.post('/chat', async (req, res) => {
   if (!userId) return res.status(401).json({ error: "Not logged in" });
 
   try {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error("OpenAI API key not found in environment variables");
+    }
+
     const openaiRes = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
@@ -104,13 +108,19 @@ app.post('/chat', async (req, res) => {
       }
     );
 
-    console.log("OpenAI response:", openaiRes.data);
-    const aiResponse = openaiRes.data.choices?.[0]?.message?.content || "No reply from AI.";
+    if (!openaiRes.data?.choices?.[0]?.message?.content) {
+      throw new Error("Unexpected response format from OpenAI");
+    }
+
+    const aiResponse = openaiRes.data.choices[0].message.content;
     res.json({ response: aiResponse });
 
   } catch (err) {
-    console.error("OpenAI error:", err.response?.data || err.message);
-    res.status(500).json({ response: "Error contacting OpenAI" });
+    console.error("OpenAI error:", err.message);
+    const errorMessage = process.env.OPENAI_API_KEY 
+      ? "Error contacting OpenAI: " + err.message
+      : "OpenAI API key not configured";
+    res.status(500).json({ response: errorMessage });
   }
 });
 
