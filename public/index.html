@@ -1,11 +1,30 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Luna AI</title>
+  <title>Luna AI – Test Chat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
-  <h2>Welcome to Luna AI</h2>
-  <p>Chat UI coming soon...</p>
-  <a href="/logout">Logout</a>
+  <h2>Test Luna AI Chat</h2>
+  <form id="chatForm">
+    <input type="text" id="message" placeholder="Ask Luna AI..." required style="width: 300px;">
+    <button type="submit">Send</button>
+  </form>
+  <div id="response" style="margin-top: 1rem;"></div>
+
+  <script>
+    document.getElementById("chatForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const msg = document.getElementById("message").value;
+      const res = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg })
+      });
+      const data = await res.json();
+      document.getElementById("response").innerText = "Luna AI: " + data.response;
+    });
+  </script>
 </body>
 </html>
+

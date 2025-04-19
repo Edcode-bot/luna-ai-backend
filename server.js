@@ -39,15 +39,37 @@ db.run(`CREATE TABLE IF NOT EXISTS messages (
 app.get('/', (req, res) => {
   if (!req.session.userId) return res.redirect('/login');
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+app.post('/chat', async (req, res) => {
+  const userId = req.session.userId;
+  const userMsg = req.body.message;
+
+  if (!userId) return res.status(401).json({ error: "Not logged in" });
+
+  try {
+    const openaiRes = await axios.post(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        model: "gpt-3.5-turbo",
+        messages: [{ role: "user", content: userMsg }],
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    console.log("OpenAI response:", openaiRes.data);
+    const aiResponse = openaiRes.data.choices?.[0]?.message?.content || "No reply from AI.";
+    res.json({ response: aiResponse });
+
+  } catch (err) {
+    console.error("OpenAI error:", err.response?.data || err.message);
+    res.status(500).json({ response: "Error contacting OpenAI" });
+  }
 });
 
-app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'login.html'));
-});
-
-app.get('/register', (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'register.html'));
-});
 
 // Register logic
 app.post('/register', async (req, res) => {
@@ -84,3 +106,38 @@ app.get('/logout', (req, res) => {
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Luna AI running on port ${PORT}`));
+
+const axios = require('axios');
+
+app.post('/chat', async (req, res) => {
+  const userId = req.session.userId;
+  const userMsg = req.body.message;
+
+  if (!userId) return res.status(401).json({ error: "Not logged in" });
+
+  try {
+    const openaiRes = await axios.post(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        model: "gpt-3.5-turbo",
+        messages: [{ role: "user", content: userMsg }],
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    console.log("OpenAI response:", openaiRes.data);
+    const aiResponse = openaiRes.data.choices?.[0]?.message?.content || "No reply from AI.";
+
+
+    // Optional: save to database here
+    res.json({ response: aiResponse });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ response: "Error contacting OpenAI" });
+  }
+});
