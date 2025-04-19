@@ -22,7 +22,12 @@
         body: JSON.stringify({ message: msg })
       });
       const data = await res.json();
-      document.getElementById("response").innerText = "Luna AI: " + data.response;
+      if (data.error) {
+        document.getElementById("response").innerText = "Error: " + data.error;
+      } else {
+        document.getElementById("response").innerText = "Luna AI: " + (data.response || "No response received");
+      }
+      console.log("Response data:", data);
     });
   </script>
 </body>
