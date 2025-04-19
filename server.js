@@ -100,6 +100,9 @@ app.post('/chat', async (req, res) => {
     
     console.log("Using API Key:", process.env.OPENAI_API_KEY ? "Key is present" : "Key is missing");
     
+    // Add delay between requests
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
     const openaiRes = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
@@ -129,9 +132,14 @@ app.post('/chat', async (req, res) => {
 
   } catch (err) {
     console.error("OpenAI error:", err.message);
-    const errorMessage = process.env.OPENAI_API_KEY 
-      ? "Error contacting OpenAI: " + err.message
-      : "OpenAI API key not configured";
+    let errorMessage;
+    if (err.response?.status === 429) {
+      errorMessage = "Please wait a moment and try again - the AI is processing too many requests";
+    } else {
+      errorMessage = process.env.OPENAI_API_KEY 
+        ? "Error contacting OpenAI. Please try again in a few moments."
+        : "OpenAI API key not configured";
+    }
     res.status(500).json({ response: errorMessage });
   }
 });
