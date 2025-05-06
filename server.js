@@ -115,7 +115,7 @@ app.post('/chat', async (req, res) => {
         headers: {
           "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
           "HTTP-Referer": "https://replit.com",
-          "X-Title": "Educore AI",
+          "X-Title": "Luna AI",
           "Content-Type": "application/json"
         }
       }
