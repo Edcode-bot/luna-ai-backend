@@ -20,6 +20,78 @@ app.use(session({
   saveUninitialized: true
 }));
 
+// Admin login page
+app.get('/admin', (req, res) => {
+  if (req.session.isAdmin) {
+    return res.redirect('/admin/dashboard');
+  }
+  res.sendFile(path.join(__dirname, 'views', 'admin-login.html'));
+});
+
+// Handle admin login
+app.post('/admin/login', (req, res) => {
+  const { username, password } = req.body;
+
+  if (
+    username === process.env.ADMIN_USER &&
+    password === process.env.ADMIN_PASS
+  ) {
+    req.session.isAdmin = true;
+    return res.redirect('/admin/dashboard');
+  }
+
+  res.send("Invalid login. <a href='/admin'>Try again</a>");
+});
+
+// Admin dashboard
+app.get('/admin/dashboard', (req, res) => {
+  if (!req.session.isAdmin) return res.redirect('/admin');
+
+  db.all("SELECT id, name, email FROM users ORDER BY id DESC", (err, users) => {
+    if (err) return res.send("Error loading users.");
+
+    db.all("SELECT user_id, role, message, created_at FROM messages ORDER BY created_at DESC LIMIT 10", (err, messages) => {
+      if (err) return res.send("Error loading messages.");
+
+      let userRows = users.map(u => `<tr><td>${u.id}</td><td>${u.name}</td><td>${u.email}</td></tr>`).join("");
+      let messageRows = messages.map(m => `<tr><td>${m.user_id}</td><td>${m.role}</td><td>${m.message}</td><td>${m.created_at}</td></tr>`).join("");
+
+      res.send(`
+        <html>
+        <head>
+          <title>Admin Dashboard</title>
+          <style>
+            body { font-family: sans-serif; padding: 2rem; background: #f8f9fa; }
+            h1 { color: #333; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 2rem; }
+            th, td { border: 1px solid #ddd; padding: 0.75rem; text-align: left; }
+            th { background: #4f46e5; color: white; }
+            a.logout { display: inline-block; margin-bottom: 1rem; color: #4f46e5; text-decoration: none; }
+            a.logout:hover { text-decoration: underline; }
+          </style>
+        </head>
+        <body>
+          <h1>Admin Dashboard</h1>
+          <a class="logout" href="/logout">Logout</a>
+
+          <h2>Registered Users</h2>
+          <table>
+            <tr><th>ID</th><th>Name</th><th>Email</th></tr>
+            ${userRows}
+          </table>
+
+          <h2>Recent Messages</h2>
+          <table>
+            <tr><th>User ID</th><th>Role</th><th>Message</th><th>Time</th></tr>
+            ${messageRows}
+          </table>
+        </body>
+        </html>
+      `);
+    });
+  });
+});
+
 // Initialize tables
 db.run(`CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,7 +111,7 @@ db.run(`CREATE TABLE IF NOT EXISTS messages (
 // Routes
 app.get('/', (req, res) => {
   if (!req.session.userId) return res.redirect('/login');
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(__dirname, 'views', 'index.html'));
 });
 
 app.get('/login', (req, res) => {
@@ -62,15 +134,19 @@ app.post('/register', async (req, res) => {
   });
 });
 
-// Login logic
+// Login logic with proper error page
 app.post('/login', (req, res) => {
   const { email, password } = req.body;
 
   db.get(`SELECT * FROM users WHERE email = ?`, [email], async (err, user) => {
-    if (err || !user) return res.send("No account found. <a href='/login'>Try again</a>");
+    if (err || !user) {
+      return res.sendFile(path.join(__dirname, 'views', 'account-not-found.html'));
+    }
 
     const match = await bcrypt.compare(password, user.password);
-    if (!match) return res.send("Wrong password. <a href='/login'>Try again</a>");
+    if (!match) {
+      return res.sendFile(path.join(__dirname, 'views', 'account-not-found.html'));
+    }
 
     req.session.userId = user.id;
     res.redirect('/');
@@ -97,12 +173,10 @@ app.post('/chat', async (req, res) => {
     }
 
     console.log("Sending message to OpenRouter:", userMsg);
-    
     console.log("Using API Key:", process.env.OPENROUTER_API_KEY ? "Key is present" : "Key is missing");
-    
-    // Add delay between requests
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
+
+    await new Promise(resolve => setTimeout(resolve, 1000)); // Delay
+
     const openRouterRes = await axios.post(
       "https://openrouter.ai/api/v1/chat/completions",
       {
@@ -115,33 +189,25 @@ app.post('/chat', async (req, res) => {
         headers: {
           "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
           "HTTP-Referer": "https://replit.com",
-          "X-Title": "Luna AI",
+          "X-Title": "Educore AI",
           "Content-Type": "application/json"
         }
       }
     );
 
-    console.log("OpenRouter raw response:", openRouterRes.data);
-    
-    if (!openRouterRes.data?.choices?.[0]?.message?.content) {
-      console.error("Unexpected API response format:", openRouterRes.data);
-      throw new Error("Unexpected response format from OpenRouter");
-    }
-
     const aiResponse = openRouterRes.data.choices[0].message.content;
-    console.log("Final AI response:", aiResponse);
     res.json({ response: aiResponse });
 
   } catch (err) {
-    console.error("OpenAI error:", err.message);
+    console.error("OpenRouter error:", err.message);
     let errorMessage;
+
     if (err.response?.status === 429) {
       errorMessage = "Please wait a moment and try again - the AI is processing too many requests";
     } else {
-      errorMessage = process.env.OPENAI_API_KEY 
-        ? "Error contacting OpenAI. Please try again in a few moments."
-        : "OpenAI API key not configured";
+      errorMessage = "Something went wrong. Try again later.";
     }
+
     res.status(500).json({ response: errorMessage });
   }
 });
@@ -150,5 +216,4 @@ app.post('/chat', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Luna AI running on port ${PORT}`);
-  console.log('Access your app at: https://your-repl-name.your-username.repl.co');
 });
