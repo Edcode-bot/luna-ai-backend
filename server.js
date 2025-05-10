@@ -44,6 +44,16 @@ app.use(session({
 }));
 
 // Routes
+app.get('/messages', async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ error: 'Unauthorized' });
+
+  try {
+    const history = await Message.find({ user_id: req.session.userId }).sort({ created_at: -1 });
+    res.json(history);
+  } catch (err) {
+    res.status(500).json({ error: 'Error fetching messages' });
+  }
+});
 app.get('/', (req, res) => {
   if (!req.session.userId) return res.redirect('/login');
   res.sendFile(path.join(__dirname, 'views', 'index.html'));
@@ -208,6 +218,29 @@ app.post('/chat', async (req, res) => {
     console.error("AI error:", err.message);
     res.status(500).json({ response: "Error processing your request. Please try again later." });
   }
+});
+
+// Show profile page
+app.get('/profile', (req, res) => {
+  if (!req.session.userId) return res.redirect('/login');
+  res.sendFile(path.join(__dirname, 'views', 'profile.html'));
+});
+
+// Send user data to frontend
+app.get('/profile-data', async (req, res) => {
+  if (!req.session.userId) return res.status(401).json({ error: 'Unauthorized' });
+
+  const user = await User.findById(req.session.userId);
+  res.json({ name: user.name, email: user.email });
+});
+
+// Handle password update
+app.post('/update-password', async (req, res) => {
+  if (!req.session.userId) return res.redirect('/login');
+  const hashed = await bcrypt.hash(req.body.password, 10);
+
+  await User.findByIdAndUpdate(req.session.userId, { password: hashed });
+  res.redirect('/profile');
 });
 
 // Start server
