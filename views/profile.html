@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Luna AI – Profile</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f5f7fb;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .profile-box {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+      width: 400px;
+    }
+    h2 {
+      margin-bottom: 1rem;
+      color: #333;
+    }
+    p {
+      margin: 0.5rem 0;
+    }
+    form {
+      margin-top: 2rem;
+    }
+    input {
+      width: 100%;
+      padding: 0.6rem;
+      margin-bottom: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    button {
+      background: #4f46e5;
+      color: white;
+      padding: 0.7rem 1.5rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #3730a3;
+    }
+  </style>
+</head>
+<body>
+  <div class="profile-box">
+    <h2>My Profile</h2>
+    <p><strong>Name:</strong> <span id="userName">Loading...</span></p>
+    <p><strong>Email:</strong> <span id="userEmail">Loading...</span></p>
+
+    <form method="POST" action="/update-password">
+      <h3>Change Password</h3>
+      <input type="password" name="password" placeholder="New password" required>
+      <button type="submit">Update Password</button>
+    </form>
+  </div>
+
+  <script>
+    window.onload = async () => {
+      const res = await fetch('/profile-data');
+      const data = await res.json();
+      document.getElementById('userName').textContent = data.name;
+      document.getElementById('userEmail').textContent = data.email;
+    };
+  </script>
+</body>
+</html>
