@@ -1,14 +1,37 @@
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
-const sqlite3 = require('sqlite3').verbose();
+const mongoose = require('mongoose');
 const path = require('path');
 const dotenv = require('dotenv');
 const axios = require('axios');
 
 dotenv.config();
 const app = express();
-const db = new sqlite3.Database('./database/luna.sqlite');
+
+// MongoDB connection
+mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://techalaxy1:htGI29CQApk3enDq@clusterlunaai.rdxe7vj.mongodb.net/?retryWrites=true&w=majority&appName=ClusterLunaAI', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+}).then(() => console.log('Connected to MongoDB'))
+  .catch(err => console.error('MongoDB error:', err));
+
+// Schemas
+const userSchema = new mongoose.Schema({
+  name: String,
+  email: { type: String, unique: true },
+  password: String
+});
+
+const messageSchema = new mongoose.Schema({
+  user_id: mongoose.Schema.Types.ObjectId,
+  role: String,
+  message: String,
+  created_at: { type: Date, default: Date.now }
+});
+
+const User = mongoose.model('User', userSchema);
+const Message = mongoose.model('Message', messageSchema);
 
 // Middleware
 app.use(express.urlencoded({ extended: true }));
@@ -19,94 +42,6 @@ app.use(session({
   resave: false,
   saveUninitialized: true
 }));
-
-// Admin login page
-app.get('/admin', (req, res) => {
-  if (req.session.isAdmin) {
-    return res.redirect('/admin/dashboard');
-  }
-  res.sendFile(path.join(__dirname, 'views', 'admin-login.html'));
-});
-
-// Handle admin login
-app.post('/admin/login', (req, res) => {
-  const { username, password } = req.body;
-
-  if (
-    username === process.env.ADMIN_USER &&
-    password === process.env.ADMIN_PASS
-  ) {
-    req.session.isAdmin = true;
-    return res.redirect('/admin/dashboard');
-  }
-
-  res.send("Invalid login. <a href='/admin'>Try again</a>");
-});
-
-// Admin dashboard
-app.get('/admin/dashboard', (req, res) => {
-  if (!req.session.isAdmin) return res.redirect('/admin');
-
-  db.all("SELECT id, name, email FROM users ORDER BY id DESC", (err, users) => {
-    if (err) return res.send("Error loading users.");
-
-    db.all("SELECT user_id, role, message, created_at FROM messages ORDER BY created_at DESC LIMIT 10", (err, messages) => {
-      if (err) return res.send("Error loading messages.");
-
-      let userRows = users.map(u => `<tr><td>${u.id}</td><td>${u.name}</td><td>${u.email}</td></tr>`).join("");
-      let messageRows = messages.map(m => `<tr><td>${m.user_id}</td><td>${m.role}</td><td>${m.message}</td><td>${m.created_at}</td></tr>`).join("");
-
-      res.send(`
-        <html>
-        <head>
-          <title>Admin Dashboard</title>
-          <style>
-            body { font-family: sans-serif; padding: 2rem; background: #f8f9fa; }
-            h1 { color: #333; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 2rem; }
-            th, td { border: 1px solid #ddd; padding: 0.75rem; text-align: left; }
-            th { background: #4f46e5; color: white; }
-            a.logout { display: inline-block; margin-bottom: 1rem; color: #4f46e5; text-decoration: none; }
-            a.logout:hover { text-decoration: underline; }
-          </style>
-        </head>
-        <body>
-          <h1>Admin Dashboard</h1>
-          <a class="logout" href="/logout">Logout</a>
-
-          <h2>Registered Users</h2>
-          <table>
-            <tr><th>ID</th><th>Name</th><th>Email</th></tr>
-            ${userRows}
-          </table>
-
-          <h2>Recent Messages</h2>
-          <table>
-            <tr><th>User ID</th><th>Role</th><th>Message</th><th>Time</th></tr>
-            ${messageRows}
-          </table>
-        </body>
-        </html>
-      `);
-    });
-  });
-});
-
-// Initialize tables
-db.run(`CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT,
-  email TEXT UNIQUE,
-  password TEXT
-)`);
-
-db.run(`CREATE TABLE IF NOT EXISTS messages (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id INTEGER,
-  role TEXT,
-  message TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-)`);
 
 // Routes
 app.get('/', (req, res) => {
@@ -122,40 +57,103 @@ app.get('/register', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'register.html'));
 });
 
-// Register logic
+app.get('/logout', (req, res) => {
+  req.session.destroy(() => res.redirect('/login'));
+});
+
+// Registration
 app.post('/register', async (req, res) => {
   const { name, email, password } = req.body;
   const hashed = await bcrypt.hash(password, 10);
-
-  db.run(`INSERT INTO users (name, email, password) VALUES (?, ?, ?)`, [name, email, hashed], function(err) {
-    if (err) return res.send("Email already exists. <a href='/register'>Try again</a>");
-    req.session.userId = this.lastID;
+  try {
+    const user = await User.create({ name, email, password: hashed });
+    req.session.userId = user._id;
     res.redirect('/');
-  });
+  } catch (err) {
+    res.send("Email already exists. <a href='/register'>Try again</a>");
+  }
 });
 
-// Login logic with proper error page
-app.post('/login', (req, res) => {
+// Login
+app.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
-  db.get(`SELECT * FROM users WHERE email = ?`, [email], async (err, user) => {
-    if (err || !user) {
-      return res.sendFile(path.join(__dirname, 'views', 'account-not-found.html'));
-    }
+  const user = await User.findOne({ email });
+  if (!user) return res.sendFile(path.join(__dirname, 'views', 'account-not-found.html'));
 
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) {
-      return res.sendFile(path.join(__dirname, 'views', 'account-not-found.html'));
-    }
+  const match = await bcrypt.compare(password, user.password);
+  if (!match) return res.sendFile(path.join(__dirname, 'views', 'account-not-found.html'));
 
-    req.session.userId = user.id;
-    res.redirect('/');
-  });
+  req.session.userId = user._id;
+  res.redirect('/');
 });
 
-// Logout logic
-app.get('/logout', (req, res) => {
-  req.session.destroy(() => res.redirect('/login'));
+// Admin login
+app.get('/admin', (req, res) => {
+  if (req.session.isAdmin) return res.redirect('/admin/dashboard');
+  res.sendFile(path.join(__dirname, 'views', 'admin-login.html'));
+});
+
+app.post('/admin/login', (req, res) => {
+  const { username, password } = req.body;
+
+  if (
+    username === process.env.ADMIN_USER &&
+    password === process.env.ADMIN_PASS
+  ) {
+    req.session.isAdmin = true;
+    return res.redirect('/admin/dashboard');
+  }
+
+  res.send("Invalid login. <a href='/admin'>Try again</a>");
+});
+
+// Admin dashboard
+app.get('/admin/dashboard', async (req, res) => {
+  if (!req.session.isAdmin) return res.redirect('/admin');
+
+  try {
+    const users = await User.find().sort({ _id: -1 });
+    const messages = await Message.find().sort({ created_at: -1 }).limit(10);
+
+    const userRows = users.map(u => `<tr><td>${u._id}</td><td>${u.name}</td><td>${u.email}</td></tr>`).join("");
+    const messageRows = messages.map(m => `<tr><td>${m.user_id}</td><td>${m.role}</td><td>${m.message}</td><td>${m.created_at}</td></tr>`).join("");
+
+    res.send(`
+      <html>
+      <head>
+        <title>Admin Dashboard</title>
+        <style>
+          body { font-family: sans-serif; padding: 2rem; background: #f8f9fa; }
+          h1 { color: #333; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 2rem; }
+          th, td { border: 1px solid #ddd; padding: 0.75rem; text-align: left; }
+          th { background: #4f46e5; color: white; }
+          a.logout { display: inline-block; margin-bottom: 1rem; color: #4f46e5; text-decoration: none; }
+          a.logout:hover { text-decoration: underline; }
+        </style>
+      </head>
+      <body>
+        <h1>Admin Dashboard</h1>
+        <a class="logout" href="/logout">Logout</a>
+
+        <h2>Registered Users</h2>
+        <table>
+          <tr><th>ID</th><th>Name</th><th>Email</th></tr>
+          ${userRows}
+        </table>
+
+        <h2>Recent Messages</h2>
+        <table>
+          <tr><th>User ID</th><th>Role</th><th>Message</th><th>Time</th></tr>
+          ${messageRows}
+        </table>
+      </body>
+      </html>
+    `);
+  } catch (err) {
+    res.send("Error loading admin dashboard.");
+  }
 });
 
 // Chat endpoint
@@ -169,13 +167,8 @@ app.post('/chat', async (req, res) => {
 
   try {
     if (!process.env.OPENROUTER_API_KEY) {
-      throw new Error("OpenRouter API key not found in environment variables");
+      throw new Error("OpenRouter API key not found");
     }
-
-    console.log("Sending message to OpenRouter:", userMsg);
-    console.log("Using API Key:", process.env.OPENROUTER_API_KEY ? "Key is present" : "Key is missing");
-
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Delay
 
     const openRouterRes = await axios.post(
       "https://openrouter.ai/api/v1/chat/completions",
@@ -189,26 +182,31 @@ app.post('/chat', async (req, res) => {
         headers: {
           "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
           "HTTP-Referer": "https://replit.com",
-          "X-Title": "Educore AI",
+          "X-Title": "Luna AI",
           "Content-Type": "application/json"
         }
       }
     );
 
     const aiResponse = openRouterRes.data.choices[0].message.content;
+
+    // Save message to DB
+    await Message.create({
+      user_id: userId,
+      role: 'user',
+      message: userMsg
+    });
+
+    await Message.create({
+      user_id: userId,
+      role: 'assistant',
+      message: aiResponse
+    });
+
     res.json({ response: aiResponse });
-
   } catch (err) {
-    console.error("OpenRouter error:", err.message);
-    let errorMessage;
-
-    if (err.response?.status === 429) {
-      errorMessage = "Please wait a moment and try again - the AI is processing too many requests";
-    } else {
-      errorMessage = "Something went wrong. Try again later.";
-    }
-
-    res.status(500).json({ response: errorMessage });
+    console.error("AI error:", err.message);
+    res.status(500).json({ response: "Error processing your request. Please try again later." });
   }
 });
 
