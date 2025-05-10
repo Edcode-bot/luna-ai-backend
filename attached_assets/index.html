@@ -208,9 +208,21 @@
     .hide {
       display: none !important;
     }
+    .collapsible {
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.collapsible:hover {
+  background: #f0f4ff;
+}
+    .typed {
+  white-space: pre-wrap;
+    }
   </style>
 </head>
 <body>
+  
   <div class="container">
     <div class="welcome" id="welcomeMessage">
       <h1 style="margin-bottom: 1rem;">Welcome to Luna AI</h1>
@@ -235,6 +247,40 @@
     </div>
   </div>
   <script>
+window.onload = async () => {
+  const res = await fetch('/messages');
+  const history = await res.json();
+  const chatArea = document.getElementById('chatArea');
+
+  history.reverse().forEach(chat => {
+    if (chat.role === 'user') {
+      const question = chat.message;
+      const answerObj = history.find(m => m.role === 'assistant' && m.created_at > chat.created_at);
+
+      const card = document.createElement('div');
+      card.className = 'chat-box collapsible';
+      card.innerHTML = `
+        <div class='question' onclick="toggleAnswer(this)">
+          <strong>Q:</strong> ${question}
+        </div>
+        <div class='answer' style="display:none;">
+          A: ${answerObj ? answerObj.message : '(No response)'}
+          <div class='chat-actions'>
+            <i class="fas fa-copy" title="Copy" onclick='copyText(this)'></i>
+            <i class="fas fa-volume-up" title="Speak" onclick='speakText(this)'></i>
+          </div>
+        </div>
+      `;
+      chatArea.prepend(card);
+    }
+  });
+};
+
+function toggleAnswer(elem) {
+  const answer = elem.nextElementSibling;
+  answer.style.display = answer.style.display === 'none' ? 'block' : 'none';
+}
+
     let chatHistory = [];
 
     async function askAI(context = '') {
