@@ -219,10 +219,59 @@
     .typed {
   white-space: pre-wrap;
     }
+    .sidebar {
+  position: fixed;
+  top: 0;
+  left: -220px;
+  width: 200px;
+  height: 100%;
+  background: var(--gradient);
+  color: white;
+  padding: 2rem 1rem;
+  transition: left 0.3s ease;
+  z-index: 1000;
+}
+.sidebar.active {
+  left: 0;
+}
+.nav-link {
+  display: block;
+  margin-bottom: 1rem;
+  padding: 0.5rem 1rem;
+  background: white;
+  color: #333;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: bold;
+}
+.toggle-btn {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  font-size: 1.5rem;
+  color: var(--primary);
+  z-index: 1001;
+  background: transparent;
+  border-radius: 6px;
+  transition: 0.3s;
+}
+.toggle-btn.active {
+  background: var(--primary);
+  color: white;
+  padding: 8px;
+      }
   </style>
 </head>
 <body>
-  
+  <!-- Sidebar Toggle -->
+<i class="fas fa-bars toggle-btn" onclick="toggleSidebar()"></i>
+
+<!-- Sidebar -->
+<div id="sidebar" class="sidebar">
+  <h2>Luna AI</h2>
+  <a href="/login" class="nav-link" id="loginLink" style="display: none;">Login</a>
+  <a href="/profile" class="nav-link" id="profileLink" style="display: none;">Profile</a>
+</div>
   <div class="container">
     <div class="welcome" id="welcomeMessage">
       <h1 style="margin-bottom: 1rem;">Welcome to Luna AI</h1>
@@ -383,6 +432,42 @@ function toggleAnswer(elem) {
         document.getElementById('questionInput').value = transcript;
       };
     }
+    function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const toggle = document.querySelector('.toggle-btn');
+  sidebar.classList.toggle('active');
+  toggle.classList.toggle('active');
+}
+
+document.addEventListener('click', function (e) {
+  const sidebar = document.getElementById('sidebar');
+  const toggle = document.querySelector('.toggle-btn');
+  if (
+    sidebar.classList.contains('active') &&
+    !sidebar.contains(e.target) &&
+    !toggle.contains(e.target)
+  ) {
+    sidebar.classList.remove('active');
+    toggle.classList.remove('active');
+  }
+});
+
+window.onload = async () => {
+  const profileLink = document.getElementById('profileLink');
+  const loginLink = document.getElementById('loginLink');
+  try {
+    const res = await fetch('/profile-data');
+    if (res.ok) {
+      profileLink.style.display = 'block';
+    } else {
+      loginLink.style.display = 'block';
+    }
+  } catch {
+    loginLink.style.display = 'block';
+  }
+
+  // Load history here if needed
+};
   </script>
 </body>
 </html>
